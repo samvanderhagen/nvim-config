@@ -1,6 +1,6 @@
 -- Plugins LazyVim doesn't ship.
 return {
-  -- netrw-style directory editing: <leader>pv (like your old :Ex) or `-`
+  -- netrw-style directory editing with `-` (<leader>pv toggles the sidebar tree, see config/keymaps.lua)
   {
     "stevearc/oil.nvim",
     lazy = false,
@@ -10,7 +10,6 @@ return {
       keymaps = { ["q"] = "actions.close" },
     },
     keys = {
-      { "<leader>pv", "<cmd>Oil<cr>", desc = "Oil (current dir)" },
       { "-", "<cmd>Oil<cr>", desc = "Oil (current dir)" },
     },
   },

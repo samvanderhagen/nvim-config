@@ -2,7 +2,8 @@
 -- Press <space> and wait to see every mapping in which-key.
 local map = vim.keymap.set
 
--- <leader>pv (oil) lives in plugins/editor.lua
+-- toggle the left sidebar file tree (same as LazyVim's <leader>e)
+map("n", "<leader>pv", function() Snacks.explorer({ cwd = LazyVim.root() }) end, { desc = "Toggle file tree" })
 
 -- move selected lines
 map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selection down", silent = true })
