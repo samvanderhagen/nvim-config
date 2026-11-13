@@ -1,112 +1,150 @@
+local servers = {
+    lua_ls = {
+        settings = {
+            Lua = {
+                runtime = { version = "LuaJIT" },
+                completion = { callSnippet = "Replace" },
+                hint = { enable = true },
+            },
+        },
+    },
+    gopls = {
+        settings = {
+            gopls = {
+                gofumpt = true,
+                staticcheck = true,
+                usePlaceholders = true,
+                hints = { parameterNames = true, assignVariableTypes = true, compositeLiteralFields = true },
+            },
+        },
+    },
+    rust_analyzer = {
+        settings = { ["rust-analyzer"] = { check = { command = "clippy" } } },
+    },
+    vtsls = {},
+    basedpyright = {},
+    ruff = {},
+    bashls = {},
+    jsonls = {},
+    yamlls = {},
+    clangd = {},
+    zls = {},
+    marksman = {},
+}
+
 return {
-    "neovim/nvim-lspconfig",
-    dependencies = {
-        "stevearc/conform.nvim",
-        "williamboman/mason.nvim",
-        "williamboman/mason-lspconfig.nvim",
-        "hrsh7th/cmp-nvim-lsp",
-        "hrsh7th/cmp-buffer",
-        "hrsh7th/cmp-path",
-        "hrsh7th/cmp-cmdline",
-        "hrsh7th/nvim-cmp",
-        "L3MON4D3/LuaSnip",
-        "saadparwaiz1/cmp_luasnip",
-        "j-hui/fidget.nvim",
+    -- lua_ls knows about the nvim API when editing your config
+    {
+        "folke/lazydev.nvim",
+        ft = "lua",
+        opts = { library = { { path = "${3rd}/luv/library", words = { "vim%.uv" } }, "snacks.nvim" } },
     },
 
-    config = function()
-        require("conform").setup({
-            formatters_by_ft = {
-            }
-        })
-        local cmp = require('cmp')
-        local cmp_lsp = require("cmp_nvim_lsp")
-        local capabilities = vim.tbl_deep_extend(
-            "force",
-            {},
-            vim.lsp.protocol.make_client_capabilities(),
-            cmp_lsp.default_capabilities())
+    { "mason-org/mason.nvim", cmd = "Mason", opts = {} },
 
-        require("fidget").setup({})
-        require("mason").setup()
-        require("mason-lspconfig").setup({
-            ensure_installed = {
-                "lua_ls",
-                "rust_analyzer",
-                "gopls",
-            },
-            handlers = {
-                function(server_name) -- default handler (optional)
-                    require("lspconfig")[server_name].setup {
-                        capabilities = capabilities
-                    }
-                end,
+    {
+        "neovim/nvim-lspconfig",
+        event = { "BufReadPre", "BufNewFile" },
+        dependencies = {
+            "mason-org/mason.nvim",
+            "mason-org/mason-lspconfig.nvim",
+            "WhoIsSethDaniel/mason-tool-installer.nvim",
+            "saghen/blink.cmp",
+            { "j-hui/fidget.nvim", opts = {} },
+        },
+        config = function()
+            vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities() })
+            for name, cfg in pairs(servers) do
+                vim.lsp.config(name, cfg)
+            end
 
-                zls = function()
-                    local lspconfig = require("lspconfig")
-                    lspconfig.zls.setup({
-                        root_dir = lspconfig.util.root_pattern(".git", "build.zig", "zls.json"),
-                        settings = {
-                            zls = {
-                                enable_inlay_hints = true,
-                                enable_snippets = true,
-                                warn_style = true,
-                            },
-                        },
-                    })
-                    vim.g.zig_fmt_parse_errors = 0
-                    vim.g.zig_fmt_autosave = 0
-
-                end,
-                ["lua_ls"] = function()
-                    local lspconfig = require("lspconfig")
-                    lspconfig.lua_ls.setup {
-                        capabilities = capabilities,
-                        settings = {
-                            Lua = {
-                                runtime = { version = "Lua 5.1" },
-                                diagnostics = {
-                                    globals = { "bit", "vim", "it", "describe", "before_each", "after_each" },
-                                }
-                            }
-                        }
-                    }
-                end,
-            }
-        })
-
-        local cmp_select = { behavior = cmp.SelectBehavior.Select }
-
-        cmp.setup({
-            snippet = {
-                expand = function(args)
-                    require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
-                end,
-            },
-            mapping = cmp.mapping.preset.insert({
-                ['<C-p>'] = cmp.mapping.select_prev_item(cmp_select),
-                ['<C-n>'] = cmp.mapping.select_next_item(cmp_select),
-                ['<C-y>'] = cmp.mapping.confirm({ select = true }),
-                ["<C-Space>"] = cmp.mapping.complete(),
-            }),
-            sources = cmp.config.sources({
-                { name = 'nvim_lsp' },
-                { name = 'luasnip' }, -- For luasnip users.
-            }, {
-                { name = 'buffer' },
+            require("mason").setup()
+            require("mason-tool-installer").setup({
+                ensure_installed = vim.list_extend(vim.tbl_keys(servers), {
+                    "stylua", "prettierd", "shfmt", "goimports", "gofumpt", "shellcheck",
+                }),
             })
-        })
+            -- auto-enables every installed server
+            require("mason-lspconfig").setup({ automatic_enable = { exclude = { "stylua" } } })
 
-        vim.diagnostic.config({
-            -- update_in_insert = true,
-            float = {
-                focusable = false,
-                style = "minimal",
-                border = "rounded",
-                source = "always",
-                header = "",
-                prefix = "",
+            vim.api.nvim_create_autocmd("LspAttach", {
+                group = vim.api.nvim_create_augroup("lsp_attach", { clear = true }),
+                callback = function(ev)
+                    -- built-in 0.11+ defaults: K hover, grn rename, gra code action,
+                    -- grr references, gri implementation, gO symbols, <C-s> signature
+                    local function map(keys, fn, desc, mode)
+                        vim.keymap.set(mode or "n", keys, fn, { buffer = ev.buf, desc = desc })
+                    end
+                    map("<leader>rn", vim.lsp.buf.rename, "Rename")
+                    map("<leader>ca", vim.lsp.buf.code_action, "Code action", { "n", "v" })
+                    map("<leader>vd", vim.diagnostic.open_float, "Line diagnostics")
+                    map("<leader>lh", function()
+                        vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf }), { bufnr = ev.buf })
+                    end, "Toggle inlay hints")
+                    map("grr", function() Snacks.picker.lsp_references() end, "References")
+                    map("gri", function() Snacks.picker.lsp_implementations() end, "Implementations")
+                end,
+            })
+        end,
+    },
+
+    -- formatting (format on save, <leader>f manually)
+    {
+        "stevearc/conform.nvim",
+        event = "BufWritePre",
+        cmd = "ConformInfo",
+        opts = {
+            formatters_by_ft = {
+                lua = { "stylua" },
+                go = { "goimports", "gofumpt" },
+                python = { "ruff_organize_imports", "ruff_format" },
+                javascript = { "prettierd" },
+                typescript = { "prettierd" },
+                javascriptreact = { "prettierd" },
+                typescriptreact = { "prettierd" },
+                json = { "prettierd" },
+                yaml = { "prettierd" },
+                markdown = { "prettierd" },
+                css = { "prettierd" },
+                html = { "prettierd" },
+                sh = { "shfmt" },
+                rust = { "rustfmt", lsp_format = "fallback" },
             },
-        })
-    end
+            format_on_save = function(buf)
+                if vim.g.disable_autoformat or vim.b[buf].disable_autoformat then return end
+                return { timeout_ms = 1000, lsp_format = "fallback" }
+            end,
+        },
+        init = function()
+            vim.api.nvim_create_user_command("FormatToggle", function()
+                vim.g.disable_autoformat = not vim.g.disable_autoformat
+                vim.notify("Format on save: " .. (vim.g.disable_autoformat and "off" or "on"))
+            end, {})
+        end,
+    },
+
+    -- completion
+    {
+        "saghen/blink.cmp",
+        version = "1.*",
+        event = { "InsertEnter", "CmdlineEnter" },
+        dependencies = { "rafamadriz/friendly-snippets" },
+        opts = {
+            -- <C-y> accept, <C-n>/<C-p> navigate, <C-space> open, <C-e> close (same as your old cmp)
+            keymap = { preset = "default" },
+            appearance = { nerd_font_variant = "mono" },
+            completion = {
+                documentation = { auto_show = true, auto_show_delay_ms = 200 },
+                ghost_text = { enabled = true },
+            },
+            signature = { enabled = true },
+            sources = {
+                default = { "lazydev", "lsp", "path", "snippets", "buffer" },
+                providers = {
+                    lazydev = { name = "LazyDev", module = "lazydev.integrations.blink", score_offset = 100 },
+                },
+            },
+            fuzzy = { implementation = "prefer_rust_with_warning" },
+        },
+    },
 }
