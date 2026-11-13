@@ -2,8 +2,7 @@
 -- Press <space> and wait to see every mapping in which-key.
 local map = vim.keymap.set
 
--- explorer (netrw is disabled by LazyVim, so use the snacks explorer)
-map("n", "<leader>pv", function() Snacks.explorer() end, { desc = "File explorer" })
+-- <leader>pv (oil) lives in plugins/editor.lua
 
 -- move selected lines
 map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selection down", silent = true })
@@ -46,6 +45,12 @@ map("n", "<leader>pWs", function()
   Snacks.picker.grep_word({ search = vim.fn.expand("<cWORD>") })
 end, { desc = "Grep WORD" })
 map("n", "<leader>vh", function() Snacks.picker.help() end, { desc = "Help tags" })
+map("n", "<leader>pb", function() Snacks.picker.buffers() end, { desc = "Buffers" })
+map("n", "<leader>pr", function() Snacks.picker.recent() end, { desc = "Recent files" })
+map("n", "<leader>pe", function() Snacks.explorer() end, { desc = "File tree" })
+
+-- old zen-mode key (LazyVim's own is <leader>uz)
+map("n", "<leader>zz", function() Snacks.zen() end, { desc = "Zen mode" })
 
 -- Go error snippets (Go files only; moved from <leader>e*, which is the explorer)
 vim.api.nvim_create_autocmd("FileType", {

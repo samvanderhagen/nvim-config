@@ -2,6 +2,9 @@
 -- https://www.lazyvim.org/configuration/general
 local opt = vim.opt
 
+-- python extra: use basedpyright instead of pyright
+vim.g.lazyvim_python_lsp = "basedpyright"
+
 opt.number = true
 opt.relativenumber = true
 
